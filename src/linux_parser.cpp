@@ -117,7 +117,7 @@ float LinuxParser::MemoryUtilization() {
   mem_availf = std::stof(mem_avail);
   mem_buffer = std::stof(buffers);
 
-  result_mem_utilization = mem_tot - mem_ffree;
+  result_mem_utilization = (mem_tot - mem_ffree) / mem_tot;
   return result_mem_utilization;
 }
 
@@ -144,7 +144,127 @@ long LinuxParser::UpTime() {
 }
 
 // TODO: Read and return the number of jiffies for the system
+// FIXME: Check this again
 long LinuxParser::Jiffies() {
+  return LinuxParser::ActiveJiffies() + LinuxParser::IdleJiffies(); 
+}
+
+// TODO: Read and return the number of active jiffies for a PID
+// REMOVE: [[maybe_unused]] once you define the function
+long LinuxParser::ActiveJiffies(int pid) {
+  std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
+                                   kStatFilename);
+  std::string utime, sstime, cutime, cstime, starttime, line, tmp;
+
+  if (pid_jiffies_stream.is_open()) {
+    // use just one line since the stat file for a PID contains always just one
+    // line
+    std::getline(pid_jiffies_stream, line);
+    std::stringstream pid_jiff_stream(line);
+    long result_jiffies = 0;
+
+    // go throu the string until the 14 to 17, as well as the 22 element is
+    // reached and saved. Extract all jiffies for the process in order to be
+    // prepared to extend the project
+    for (int i = 0; i < 22; i++) {
+      if (i == 13) {
+        pid_jiff_stream >> utime;
+      } else if (i == 14) {
+        pid_jiff_stream >> sstime;  // sstime, since stime is a C++ keyword
+      } else if (i == 15) {
+        pid_jiff_stream >> cutime;
+      } else if (i == 16) {
+        pid_jiff_stream >> cstime;
+      } else if (i == 21) {
+        pid_jiff_stream >> starttime;
+      } else {
+        pid_jiff_stream >> tmp;
+      }
+    }
+    result_jiffies =
+        std::stol(utime) +
+        std::stol(
+            sstime);  // calculation based on:
+                      // https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
+    return result_jiffies;
+  } else {
+    std::cerr << "Could not read jiffies for the PID " << pid << "\n";
+    exit(0);
+  }
+}
+
+// TODO: Read and return the number of active jiffies for the system
+long LinuxParser::ActiveJiffies() {
+  std::vector<int> current_pids = LinuxParser::Pids();
+  long result = 0;
+
+  // sum op all jiffies of the current PIDs
+  for (const auto& tmp_pid : current_pids) {
+    result += LinuxParser::ActiveJiffies(tmp_pid);
+  }
+
+  return result;
+}
+
+long LinuxParser::IdleJiffies(int pid) {
+  // As idle jiffies we define everything, that is related to a process but not
+  // the process itself
+  std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
+                                   kStatFilename);
+  std::string utime, sstime, cutime, cstime, starttime, line, tmp;
+
+  if (pid_jiffies_stream.is_open()) {
+    // use just one line since the stat file for a PID contains always just one
+    // line
+    std::getline(pid_jiffies_stream, line);
+    std::stringstream pid_jiff_stream(line);
+    long result_jiffies = 0;
+
+    // go throu the string until the 14 to 17, as well as the 22 element is
+    // reached and saved. Extract all jiffies for the process in order to be
+    // prepared to extend the project
+    for (int i = 0; i < 22; i++) {
+      if (i == 13) {
+        pid_jiff_stream >> utime;
+      } else if (i == 14) {
+        pid_jiff_stream >> sstime;  // sstime, since stime is a C++ keyword
+      } else if (i == 15) {
+        pid_jiff_stream >> cutime;
+      } else if (i == 16) {
+        pid_jiff_stream >> cstime;
+      } else if (i == 21) {
+        pid_jiff_stream >> starttime;
+      } else {
+        pid_jiff_stream >> tmp;
+      }
+    }
+    result_jiffies =
+        std::stol(cutime) +
+        std::stol(
+            cstime);  // calculation based on:
+                      // https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
+    return result_jiffies;
+  } else {
+    std::cerr << "Could not read jiffies for the PID " << pid << "\n";
+    exit(0);
+  }
+}
+
+// TODO: Read and return the number of idle jiffies for the system
+long LinuxParser::IdleJiffies() {
+  std::vector<int> current_pids = LinuxParser::Pids();
+  long result = 0;
+
+  // sum op all jiffies of the current PIDs
+  for (const auto& tmp_pid : current_pids) {
+    result += LinuxParser::IdleJiffies(tmp_pid);
+  }
+  return result;
+}
+
+// TODO: Read and return CPU utilization
+vector<string> LinuxParser::CpuUtilization() { 
+  
   // Intro to jiffies:
   // https://cyberglory.wordpress.com/2011/08/21/jiffies-in-linux-kernel/ We
   // want the system wide jiffies, which you can read out from the first number
@@ -165,43 +285,32 @@ long LinuxParser::Jiffies() {
       }
     }
   }
+
+  return {};   
 }
 
-  // TODO: Read and return the number of active jiffies for a PID
-  // REMOVE: [[maybe_unused]] once you define the function
-  long LinuxParser::ActiveJiffies(int pid [[maybe_unused]]) { return 0; }
+// TODO: Read and return the total number of processes
+int LinuxParser::TotalProcesses() { return 0; }
 
-  // TODO: Read and return the number of active jiffies for the system
-  long LinuxParser::ActiveJiffies() { return 0; }
+// TODO: Read and return the number of running processes
+int LinuxParser::RunningProcesses() { return 0; }
 
-  // TODO: Read and return the number of idle jiffies for the system
-  long LinuxParser::IdleJiffies() { return 0; }
+// TODO: Read and return the command associated with a process
+// REMOVE: [[maybe_unused]] once you define the function
+string LinuxParser::Command(int pid [[maybe_unused]]) { return string(); }
 
-  // TODO: Read and return CPU utilization
-  vector<string> LinuxParser::CpuUtilization() { return {}; }
+// TODO: Read and return the memory used by a process
+// REMOVE: [[maybe_unused]] once you define the function
+string LinuxParser::Ram(int pid [[maybe_unused]]) { return string(); }
 
-  // TODO: Read and return the total number of processes
-  int LinuxParser::TotalProcesses() { return 0; }
+// TODO: Read and return the user ID associated with a process
+// REMOVE: [[maybe_unused]] once you define the function
+string LinuxParser::Uid(int pid [[maybe_unused]]) { return string(); }
 
-  // TODO: Read and return the number of running processes
-  int LinuxParser::RunningProcesses() { return 0; }
+// TODO: Read and return the user associated with a process
+// REMOVE: [[maybe_unused]] once you define the function
+string LinuxParser::User(int pid [[maybe_unused]]) { return string(); }
 
-  // TODO: Read and return the command associated with a process
-  // REMOVE: [[maybe_unused]] once you define the function
-  string LinuxParser::Command(int pid [[maybe_unused]]) { return string(); }
-
-  // TODO: Read and return the memory used by a process
-  // REMOVE: [[maybe_unused]] once you define the function
-  string LinuxParser::Ram(int pid [[maybe_unused]]) { return string(); }
-
-  // TODO: Read and return the user ID associated with a process
-  // REMOVE: [[maybe_unused]] once you define the function
-  string LinuxParser::Uid(int pid [[maybe_unused]]) { return string(); }
-
-  // TODO: Read and return the user associated with a process
-  // REMOVE: [[maybe_unused]] once you define the function
-  string LinuxParser::User(int pid [[maybe_unused]]) { return string(); }
-
-  // TODO: Read and return the uptime of a process
-  // REMOVE: [[maybe_unused]] once you define the function
-  long LinuxParser::UpTime(int pid [[maybe_unused]]) { return 0; }
+// TODO: Read and return the uptime of a process
+// REMOVE: [[maybe_unused]] once you define the function
+long LinuxParser::UpTime(int pid [[maybe_unused]]) { return 0; }
