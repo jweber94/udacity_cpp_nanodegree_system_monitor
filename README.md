@@ -19,6 +19,8 @@ Within the Udacity Workspace, `.student_bashrc` automatically installs ncurses e
 If you are not using the Workspace, install ncurses within your own Linux environment: `sudo apt install libncurses5-dev libncursesw5-dev`
 
 ## Make
+CAUTION: Requires the g++7 compiler in my version!
+
 This project uses [Make](https://www.gnu.org/software/make/). The Makefile has four targets:
 * `build` compiles the source code and generates an executable
 * `format` applies [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html) to style the source code

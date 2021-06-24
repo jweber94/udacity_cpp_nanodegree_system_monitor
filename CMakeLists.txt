@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.6)
 project(monitor)
 
+# my code update
+set(CMAKE_CXX_COMPILER "/usr/bin/g++-7")
+
 find_package(Curses REQUIRED)
 include_directories(${CURSES_INCLUDE_DIRS})
 
