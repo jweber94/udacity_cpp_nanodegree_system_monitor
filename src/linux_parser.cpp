@@ -4,11 +4,10 @@
 #include <unistd.h>
 
 #include <cassert>
-#include <iostream>  // for Debugging
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <unistd.h>
 
 using std::stof;
 using std::string;
@@ -75,7 +74,6 @@ vector<int> LinuxParser::Pids() {
 float LinuxParser::MemoryUtilization() {
   // cache all memory related information to make it possible to create more
   // sophisticated functionallities in the future
-  float result_mem_utilization = 0.f;
   float mem_tot, mem_ffree, mem_availf, mem_buffer;
   std::string line, mem_total, mem_free, mem_avail, buffers, tmp_key, tmp_value;
   std::ifstream mem_util_stream(kProcDirectory + kMeminfoFilename);
@@ -119,34 +117,34 @@ float LinuxParser::MemoryUtilization() {
   mem_availf = std::stof(mem_avail);
   mem_buffer = std::stof(buffers);
 
-  result_mem_utilization = (mem_tot - mem_ffree) / mem_tot;
-  return result_mem_utilization;
+  return (mem_tot - mem_ffree) / mem_tot;
 }
 
 // TODO: Read and return the system uptime
 long LinuxParser::UpTime() {
-  // Explaination of uptime:
-  // https://unix.stackexchange.com/questions/275907/on-linux-when-does-uptime-start-counting-from
+  /*
+   * Returns the uptime of the system in seconds
+   *
+   * Explaination of uptime:
+   * https://unix.stackexchange.com/questions/275907/on-linux-when-does-uptime-start-counting-from
+   * https://man7.org/linux/man-pages/man5/proc.5.html - search for
+   * "/proc/uptime" and you can see, that we are looking for the first element
+   * in the file.
+   */
   std::string line, uptime, idle_time;
   std::ifstream uptime_stream(kProcDirectory + kUptimeFilename);
   if (uptime_stream.is_open()) {
     std::getline(uptime_stream, line);
     std::istringstream linestream_instance(line);
     linestream_instance >> uptime >> idle_time;
+    return std::stol(uptime);
   } else {
     std::cerr << "Could not open /proc/uptime\n";
     exit(0);
   }
-  long uptime_result = std::stol(uptime);
-
-  // DEBUG
-  std::cout << "uptime as long is: " << uptime_result << "\n";
-
-  return uptime_result;
 }
 
 // TODO: Read and return the number of jiffies for the system
-// FIXME: Check this again
 long LinuxParser::Jiffies() {
   return LinuxParser::ActiveJiffies() + LinuxParser::IdleJiffies();
 }
@@ -154,6 +152,10 @@ long LinuxParser::Jiffies() {
 // TODO: Read and return the number of active jiffies for a PID
 // REMOVE: [[maybe_unused]] once you define the function
 long LinuxParser::ActiveJiffies(int pid) {
+  /*
+  * Returns the number of jiffies (= clock ticks) that the process with the corresponding PID has spend actively on the cpu
+  */
+  
   std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
                                    kStatFilename);
   std::string utime, sstime, cutime, cstime, starttime, line, tmp;
@@ -197,20 +199,28 @@ long LinuxParser::ActiveJiffies(int pid) {
 
 // TODO: Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() {
-  std::vector<int> current_pids = LinuxParser::Pids();
-  long result = 0;
+  /*
+  * Returns the number of jiffies (= clock ticks) that the cpu spends in active modes (user mode, nice mode, system mode). The information could be found in /proc/stat after the cpu key. You can look up the itemization in https://man7.org/linux/man-pages/man5/procfs.5.html if you are searching for "/proc/stat" 
+  */
+  std::string line, key, user_jif, nice_jif, system_jif, idle_jif; 
+  std::ifstream active_jif_stream(kProcDirectory + kStatFilename);
 
-  // sum op all jiffies of the current PIDs
-  for (const auto& tmp_pid : current_pids) {
-    result += LinuxParser::ActiveJiffies(tmp_pid);
+  if (active_jif_stream.is_open()){
+    std::getline(active_jif_stream, line);
+    std::stringstream cpu_sstream(line); // the cummulated system cpu information is stored only in the first line
+    cpu_sstream >> key >> user_jif >> nice_jif >> system_jif >> idle_jif;
+    return std::stol(user_jif) + std::stol(nice_jif) + std::stol(system_jif); 
+  } else {
+    std::cerr << "Could not open /proc/stat\n"; 
+    exit(0); 
   }
-
-  return result;
 }
 
 long LinuxParser::IdleJiffies(int pid) {
-  // As idle jiffies we define everything, that is related to a process but not
-  // the process itself
+  /*
+  * Returns the number of jiffies (= clock ticks) that the process with the corresponding PID has spend passivly on the cpu (= idle)
+  */
+  
   std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
                                    kStatFilename);
   std::string utime, sstime, cutime, cstime, starttime, line, tmp;
@@ -242,9 +252,7 @@ long LinuxParser::IdleJiffies(int pid) {
     }
     result_jiffies =
         std::stol(cutime) +
-        std::stol(
-            cstime);  // calculation based on:
-                      // https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
+        std::stol(cstime); 
     return result_jiffies;
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";
@@ -254,14 +262,21 @@ long LinuxParser::IdleJiffies(int pid) {
 
 // TODO: Read and return the number of idle jiffies for the system
 long LinuxParser::IdleJiffies() {
-  std::vector<int> current_pids = LinuxParser::Pids();
-  long result = 0;
+  /*
+  * Returns the number of jiffies (= clock ticks) that the cpu spends in active modes (user mode, nice mode, system mode). The information could be found in /proc/stat after the cpu key. You can look up the itemization in https://man7.org/linux/man-pages/man5/procfs.5.html if you are searching for "/proc/stat" 
+  */
+  std::string line, key, user_jif, nice_jif, system_jif, idle_jif; 
+  std::ifstream active_jif_stream(kProcDirectory + kStatFilename);
 
-  // sum op all jiffies of the current PIDs
-  for (const auto& tmp_pid : current_pids) {
-    result += LinuxParser::IdleJiffies(tmp_pid);
+  if (active_jif_stream.is_open()){
+    std::getline(active_jif_stream, line);
+    std::stringstream cpu_sstream(line); // the cummulated system cpu information is stored only in the first line
+    cpu_sstream >> key >> user_jif >> nice_jif >> system_jif >> idle_jif;
+    return std::stol(idle_jif); // iowait is not included, since it is not a relieable value (i.e. https://man7.org/linux/man-pages/man5/procfs.5.html search for /proc/stat)
+  } else {
+    std::cerr << "Could not open /proc/stat\n"; 
+    exit(0); 
   }
-  return result;
 }
 
 // TODO: Read and return CPU utilization
@@ -354,7 +369,6 @@ int LinuxParser::RunningProcesses() {
     std::cerr << "Could not open /proc/stat\n";
     exit(0);
   }
-
   return 0;
 }
 
@@ -429,9 +443,9 @@ string LinuxParser::User(int pid) {
   std::string line, uid_process;
   std::ifstream user_stream(kPasswordPath);
   std::string pass, uid;
-  std::string username{"NoUser"};  
+  std::string username{"NoUser"};
 
-      uid_process = LinuxParser::Uid(pid);
+  uid_process = LinuxParser::Uid(pid);
 
   if (user_stream.is_open()) {
     while (std::getline(user_stream, line)) {
@@ -444,10 +458,10 @@ string LinuxParser::User(int pid) {
           ' ');  // The data in /etc/passwd is colon sepatated - to read it out
                  // with a stringstream we need to separate it by spaces
       std::stringstream linestream(line);
-      linestream >> username >> pass >> uid; 
-      if (uid == uid_process){
-        return username; 
-      } 
+      linestream >> username >> pass >> uid;
+      if (uid == uid_process) {
+        return username;
+      }
     }
   } else {
     std::cerr << "Could not open " << kPasswordPath << "\n";
@@ -457,23 +471,29 @@ string LinuxParser::User(int pid) {
 
 // TODO: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::UpTime(int pid) { 
-  std::string line, tmp_element, uptime; 
-  std::ifstream uptime_pid_stream(kProcDirectory + "/" + std::to_string(pid) + kStatFilename); 
+long LinuxParser::UpTime(int pid) {
+  // Tipp: Here we could use long LinuxParser::ActiveJiffies(int pid) in order
+  // to get the jiffies for the process and then calculate the seconds
+  // (respectively return line)
+  std::string line, tmp_element, uptime;
+  std::ifstream uptime_pid_stream(kProcDirectory + "/" + std::to_string(pid) +
+                                  kStatFilename);
 
-  if (uptime_pid_stream.is_open()){
-    std::getline(uptime_pid_stream, line); // the stat file has always just one line  
+  if (uptime_pid_stream.is_open()) {
+    std::getline(uptime_pid_stream,
+                 line);  // the stat file has always just one line
     std::stringstream linestream(line);
 
-    // iterate until the uptime element of the process is the next one to parse from the stringstream 
-    for (int i = 1; i < 22; i++){
-      linestream >> tmp_element;  
+    // iterate until the uptime element of the process is the next one to parse
+    // from the stringstream
+    for (int i = 1; i < 22; i++) {
+      linestream >> tmp_element;
     }
     // parse the uptime
-    linestream >> uptime; // uptime in jiffies
-    return (std::stol(uptime)/sysconf(_SC_CLK_TCK)); 
+    linestream >> uptime;  // uptime in jiffies
+    return (std::stol(uptime) / sysconf(_SC_CLK_TCK));
   } else {
-    std::cerr << "Could not open /proc/" << pid << "/stat\n"; 
-    exit(0); 
+    std::cerr << "Could not open /proc/" << pid << "/stat\n";
+    exit(0);
   }
 }
