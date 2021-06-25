@@ -3,10 +3,12 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include <cassert>
 #include <iostream>  // for Debugging
 #include <sstream>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 using std::stof;
 using std::string;
@@ -146,7 +148,7 @@ long LinuxParser::UpTime() {
 // TODO: Read and return the number of jiffies for the system
 // FIXME: Check this again
 long LinuxParser::Jiffies() {
-  return LinuxParser::ActiveJiffies() + LinuxParser::IdleJiffies(); 
+  return LinuxParser::ActiveJiffies() + LinuxParser::IdleJiffies();
 }
 
 // TODO: Read and return the number of active jiffies for a PID
@@ -263,54 +265,215 @@ long LinuxParser::IdleJiffies() {
 }
 
 // TODO: Read and return CPU utilization
-vector<string> LinuxParser::CpuUtilization() { 
-  
-  // Intro to jiffies:
-  // https://cyberglory.wordpress.com/2011/08/21/jiffies-in-linux-kernel/ We
-  // want the system wide jiffies, which you can read out from the first number
-  // cpu: Key in /proc/stat
-  long result_jiffies = 0;
-  std::string system_jiffies, line, tmp_key, tmp_val;
-  std::ifstream jiffie_stream(kProcDirectory + kStatFilename);
-  bool jiffies_found_b = false;
+vector<string> LinuxParser::CpuUtilization() {
+  std::vector<std::string> cpu_vector;
+  // Explaination, how to read the system cpu information from the /proc/stat
+  // file: https://www.idnt.net/en-US/kb/941772
+  std::string line, name, user_cpu, nice_cpu, system_cpu, idle_cpu, iowait_cpu,
+      irq_cpu, softirq_cpu, steal_cpu, guest_cpu;
+  std::ifstream cpu_usage_stream(kProcDirectory + kStatFilename);
 
-  if (jiffie_stream.is_open()) {
-    while (std::getline(jiffie_stream, line)) {
-      // read throu the line
-      while (jiffie_stream >> tmp_key >> tmp_val) {
-        if (tmp_key == "cpu") {
-          result_jiffies = std::stol(tmp_val);
-          return result_jiffies;
-        }
-      }
-    }
+  if (cpu_usage_stream.is_open()) {
+    // no while loop, since the first line contains the cpu information
+    // aggregated
+    std::getline(cpu_usage_stream, line);
+    std::stringstream line_stream(line);
+
+    line_stream >> name >> user_cpu >> nice_cpu >> system_cpu >> idle_cpu >>
+        iowait_cpu >> irq_cpu >> softirq_cpu >> steal_cpu >> guest_cpu;
+
+    cpu_vector.push_back(user_cpu);
+    cpu_vector.push_back(nice_cpu);
+    cpu_vector.push_back(system_cpu);
+    cpu_vector.push_back(idle_cpu);
+    cpu_vector.push_back(iowait_cpu);
+    cpu_vector.push_back(irq_cpu);
+    cpu_vector.push_back(softirq_cpu);
+    cpu_vector.push_back(steal_cpu);
+    cpu_vector.push_back(guest_cpu);
+
+    assert(cpu_vector.size() == 9);
+
+    return cpu_vector;
+
+  } else {
+    std::cerr << "Could not open /proc/stat\n";
+    exit(0);
   }
-
-  return {};   
 }
 
 // TODO: Read and return the total number of processes
-int LinuxParser::TotalProcesses() { return 0; }
+int LinuxParser::TotalProcesses() {
+  std::string line, tmp_str, num_proc;
+  std::ifstream cpu_usage_stream(kProcDirectory + kStatFilename);
+  int num_processes;
+
+  if (cpu_usage_stream.is_open()) {
+    while (std::getline(cpu_usage_stream, line)) {
+      // look throu all first elements and check if the line with processes is
+      // reached, if so save the number of processes
+      std::stringstream line_stream(line);
+      line_stream >> tmp_str;
+      if (tmp_str == "processes") {
+        line_stream >> num_proc;
+        break;  // if we found the processes line, stop the loop for searching
+                // the processes line since we already found it
+      }
+    }
+    num_processes = std::stoi(num_proc);
+    return num_processes;
+
+  } else {
+    std::cerr << "Could not open /proc/stat\n";
+    exit(0);
+  }
+}
 
 // TODO: Read and return the number of running processes
-int LinuxParser::RunningProcesses() { return 0; }
+int LinuxParser::RunningProcesses() {
+  std::string line, tmp_str, num_proc;
+  std::ifstream cpu_usage_stream(kProcDirectory + kStatFilename);
+  int num_processes;
+
+  if (cpu_usage_stream.is_open()) {
+    while (std::getline(cpu_usage_stream, line)) {
+      // look throu all first elements and check if the line with processes is
+      // reached, if so save the number of processes
+      std::stringstream line_stream(line);
+      line_stream >> tmp_str;
+      if (tmp_str == "procs_running") {
+        line_stream >> num_proc;
+        break;  // if we found the processes line, stop the loop for searching
+                // the processes line since we already found it
+      }
+    }
+    num_processes = std::stoi(num_proc);
+    return num_processes;
+
+  } else {
+    std::cerr << "Could not open /proc/stat\n";
+    exit(0);
+  }
+
+  return 0;
+}
 
 // TODO: Read and return the command associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Command(int pid [[maybe_unused]]) { return string(); }
+string LinuxParser::Command(int pid) {
+  std::string exec_command, tmp_str;
+  std::ifstream command_stream(kProcDirectory + std::to_string(pid) +
+                               kCmdlineFilename);
+
+  if (command_stream.is_open()) {
+    // The cmdline file has just one line, so we can read the complete line at
+    // once if we do not want to extract special information from it
+    std::getline(command_stream, exec_command);
+    return exec_command;
+
+  } else {
+    std::cerr << "Could not open /proc/" << pid << "/cmdline\n";
+    exit(0);
+  }
+}
 
 // TODO: Read and return the memory used by a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Ram(int pid [[maybe_unused]]) { return string(); }
+string LinuxParser::Ram(int pid) {
+  std::string ram_usage, tmp_key, line;
+  std::ifstream ram_stream(kProcDirectory + "/" + std::to_string(pid) +
+                           kStatusFilename);
+  if (ram_stream.is_open()) {
+    while (std::getline(ram_stream, line)) {
+      std::stringstream line_stream(line);
+      line_stream >> tmp_key;
+      if (tmp_key == "VmRSS:") {
+        // Reference:
+        // https://serverfault.com/questions/138427/what-does-virtual-memory-size-in-top-mean
+        // and https://man7.org/linux/man-pages/man5/proc.5.html
+        line_stream >> ram_usage;  // FIXME: Check which one is the correct one
+        return ram_usage;
+      }
+    }
+  } else {
+    std::cerr << "Could not open /proc/" << pid << "/status\n";
+    exit(0);
+  }
+}
 
 // TODO: Read and return the user ID associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Uid(int pid [[maybe_unused]]) { return string(); }
+string LinuxParser::Uid(int pid) {
+  std::string line, tmp_key, uid;
+  std::ifstream uid_stream(kProcDirectory + "/" + std::to_string(pid) +
+                           kStatusFilename);
+
+  if (uid_stream.is_open()) {
+    while (std::getline(uid_stream, line)) {
+      std::stringstream linestream(line);
+      linestream >> tmp_key;
+      if (tmp_key == "Uid:") {
+        linestream >> uid;
+        return uid;
+      }
+    }
+  } else {
+    std::cerr << "Could not read /proc/" << pid << "/status\n";
+    exit(0);
+  }
+}
 
 // TODO: Read and return the user associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::User(int pid [[maybe_unused]]) { return string(); }
+string LinuxParser::User(int pid) {
+  std::string line, uid_process;
+  std::ifstream user_stream(kPasswordPath);
+  std::string pass, uid;
+  std::string username{"NoUser"};  
+
+      uid_process = LinuxParser::Uid(pid);
+
+  if (user_stream.is_open()) {
+    while (std::getline(user_stream, line)) {
+      // read out the passwd file and go throu all lines until the uid was
+      // found. Then get the username based on the uid from the first element of
+      // the line - Explaination of the passwd file:
+      // https://www.cyberciti.biz/faq/understanding-etcpasswd-file-format/
+      std::replace(
+          line.begin(), line.end(), ':',
+          ' ');  // The data in /etc/passwd is colon sepatated - to read it out
+                 // with a stringstream we need to separate it by spaces
+      std::stringstream linestream(line);
+      linestream >> username >> pass >> uid; 
+      if (uid == uid_process){
+        return username; 
+      } 
+    }
+  } else {
+    std::cerr << "Could not open " << kPasswordPath << "\n";
+    exit(0);
+  }
+}
 
 // TODO: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::UpTime(int pid [[maybe_unused]]) { return 0; }
+long LinuxParser::UpTime(int pid) { 
+  std::string line, tmp_element, uptime; 
+  std::ifstream uptime_pid_stream(kProcDirectory + "/" + std::to_string(pid) + kStatFilename); 
+
+  if (uptime_pid_stream.is_open()){
+    std::getline(uptime_pid_stream, line); // the stat file has always just one line  
+    std::stringstream linestream(line);
+
+    // iterate until the uptime element of the process is the next one to parse from the stringstream 
+    for (int i = 1; i < 22; i++){
+      linestream >> tmp_element;  
+    }
+    // parse the uptime
+    linestream >> uptime; // uptime in jiffies
+    return (std::stol(uptime)/sysconf(_SC_CLK_TCK)); 
+  } else {
+    std::cerr << "Could not open /proc/" << pid << "/stat\n"; 
+    exit(0); 
+  }
+}
