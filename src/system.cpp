@@ -10,6 +10,8 @@
 
 #include "linux_parser.h"
 
+#include <iostream>
+
 using std::set;
 using std::size_t;
 using std::string;
@@ -28,13 +30,16 @@ Processor& System::Cpu() { return cpu_; }
 vector<Process>& System::Processes() { 
     // Whenever the Processes() Method is called, read the file system and store the information for ALL process PIDs that could be found as a folder in /proc/*    
     std::vector<int> pid_list = LinuxParser::Pids();
-    std::vector<Process> process_list; 
+    this->processes_.clear();   
 
     for (int i = 0; i < pid_list.size(); i++){
         Process tmp_process(pid_list[i]); 
-        process_list.push_back(tmp_process); 
-    } 
-    return processes_; 
+        this->processes_.push_back(tmp_process); 
+    }  
+
+    std::sort(this->processes_.begin(), this->processes_.end()); 
+
+    return this->processes_; 
 }
 
 // TODO: Return the system's kernel identifier (string)
@@ -63,6 +68,7 @@ int System::TotalProcesses() {
 }
 
 // TODO: Return the number of seconds since the system started running
-long int System::UpTime() {  
-    return LinuxParser::UpTime(); 
+long int System::UpTime() {
+    long uptime_in_sec = LinuxParser::UpTime(); 
+    return uptime_in_sec; 
 }

@@ -6,7 +6,10 @@ class Processor {
   float Utilization();  // TODO: See src/processor.cpp
 
   // TODO: Declare any necessary private members
- //private:
+ private:
+ long prev_idle_;
+ long prev_non_idle_;  
+ long prev_total_; 
 };
 
 #endif

@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cmath>
 
 using std::stof;
 using std::string;
@@ -137,7 +138,7 @@ long LinuxParser::UpTime() {
     std::getline(uptime_stream, line);
     std::istringstream linestream_instance(line);
     linestream_instance >> uptime >> idle_time;
-    return std::stol(uptime);
+    return static_cast<long>(std::stof(uptime));
   } else {
     std::cerr << "Could not open /proc/uptime\n";
     exit(0);
@@ -186,10 +187,7 @@ long LinuxParser::ActiveJiffies(int pid) {
       }
     }
     result_jiffies =
-        std::stol(utime) +
-        std::stol(
-            sstime);  // calculation based on:
-                      // https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
+        std::stol(utime) + std::stol(sstime) + std::stol(cutime) + std::stol(cstime);  
     return result_jiffies;
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";
@@ -281,6 +279,19 @@ long LinuxParser::IdleJiffies() {
 
 // TODO: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() {
+  /*
+   * Resulting datastructure:
+   * 0: user_cpu;
+   * 1: nice_cpu;
+   * 2: system_cpu;
+   * 3: idle_cpu;
+   * 4: iowait_cpu;
+   * 5: irq_cpu;
+   * 6: softirq_cpu;
+   * 7: steal_cpu;
+   * 8: guest_cpu;
+   */
+  
   std::vector<std::string> cpu_vector;
   // Explaination, how to read the system cpu information from the /proc/stat
   // file: https://www.idnt.net/en-US/kb/941772
@@ -406,8 +417,15 @@ string LinuxParser::Ram(int pid) {
         // Reference:
         // https://serverfault.com/questions/138427/what-does-virtual-memory-size-in-top-mean
         // and https://man7.org/linux/man-pages/man5/proc.5.html
-        line_stream >> ram_usage;  // FIXME: Check which one is the correct one
-        return ram_usage;
+        line_stream >> ram_usage;  
+        
+        // calculate RAM in MB since we just can parse it in KB 
+        float tmp_ram = (std::stof(ram_usage) / 1000.f); 
+        float ram = floorf( tmp_ram * 100) / 100;
+        int precisionVal = 2; // number of decimal points for the print out
+         
+        std::string printout_ram = std::to_string(ram).substr(0, std::to_string(ram).find(".") + precisionVal + 1);
+        return printout_ram;
       }
     }
   } else {
@@ -473,12 +491,12 @@ string LinuxParser::User(int pid) {
 // TODO: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
 long LinuxParser::UpTime(int pid) {
-  // Tipp: Here we could use long LinuxParser::ActiveJiffies(int pid) in order
-  // to get the jiffies for the process and then calculate the seconds
-  // (respectively return line)
   std::string line, tmp_element, uptime;
   std::ifstream uptime_pid_stream(kProcDirectory + "/" + std::to_string(pid) +
                                   kStatFilename);
+  /* 
+  * Returns the uptime of a process in jiffies
+  */
 
   if (uptime_pid_stream.is_open()) {
     std::getline(uptime_pid_stream,
@@ -492,9 +510,36 @@ long LinuxParser::UpTime(int pid) {
     }
     // parse the uptime
     linestream >> uptime;  // uptime in jiffies
-    return (std::stol(uptime) / sysconf(_SC_CLK_TCK));
+
+    //std::cout << "The uptime of " << pid << " is: " << std::stol(uptime) << "\n"; 
+
+    return std::stol(uptime);
   } else {
     std::cerr << "Could not open /proc/" << pid << "/stat\n";
+    exit(0);
+  }
+}
+
+long LinuxParser::StartTime(int pid){
+  // Returns the start time of the process in jiffies
+  std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
+                                   kStatFilename);
+  std::string starttime, line, tmp;
+
+  if (pid_jiffies_stream.is_open()) {
+    std::getline(pid_jiffies_stream, line);
+    std::stringstream pid_jiff_stream(line);
+
+    // walk throu the cpu data in the first line of the file until the start time of the process appears at the index 21
+    for (int i = 0; i < 20; i++) {
+        pid_jiff_stream >> tmp;
+    }
+    // extract the start time
+    pid_jiff_stream >> starttime; 
+
+    return std::stol(starttime);  
+  } else {
+    std::cerr << "Could not read jiffies for the PID " << pid << "\n";
     exit(0);
   }
 }

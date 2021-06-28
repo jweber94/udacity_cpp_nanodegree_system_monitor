@@ -8,6 +8,7 @@
 
 #include "linux_parser.h"
 #include <unistd.h> // to calculate the CPU usage of the process from jiffies to seconds
+#include <iostream> //debug
 
 using std::string;
 using std::to_string;
@@ -26,8 +27,14 @@ int Process::Pid() {
 
 // TODO: Return this process's CPU utilization
 float Process::CpuUtilization() { 
-    float procentage_jiffies = static_cast<float>(LinuxParser::ActiveJiffies(this->pid_) + LinuxParser::IdleJiffies(this->pid_)) / static_cast<float>(LinuxParser::Jiffies());
-    return procentage_jiffies / sysconf(_SC_CLK_TCK); 
+    // Calculation based on: https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat
+    long total_time = LinuxParser::ActiveJiffies(this->pid_); 
+    long start_time = LinuxParser::StartTime(this->pid_); 
+    
+    long seconds = LinuxParser::UpTime() - long(float(start_time) / sysconf(_SC_CLK_TCK));  
+
+    float cpu_usage = ((total_time / sysconf(_SC_CLK_TCK)) / float(seconds));
+    return cpu_usage; 
 }
 
 // TODO: Return the command that generated this process
@@ -47,14 +54,14 @@ string Process::User() {
 
 // TODO: Return the age of this process (in seconds)
 long int Process::UpTime() { 
+    //std::cout << "Process uptime: " << LinuxParser::UpTime(this->pid_) << "\n"; 
     return LinuxParser::UpTime(this->pid_); 
 }
 
 // TODO: Overload the "less than" comparison operator for Process objects
 // REMOVE: [[maybe_unused]] once you define the function
-bool Process::operator<(Process const& a) const { 
-    // TODO: Check this function for correct calculation
-    float this_jiffies = static_cast<float>(LinuxParser::ActiveJiffies(this->pid_) + LinuxParser::IdleJiffies(this->pid_)) / static_cast<float>(LinuxParser::Jiffies());
-    float ref_jiffies = static_cast<float>(LinuxParser::ActiveJiffies(a.pid_) + LinuxParser::IdleJiffies(a.pid_)) / static_cast<float>(LinuxParser::Jiffies()); 
-    return (this_jiffies > ref_jiffies) ? true : false; 
+bool Process::operator<(Process & a) { 
+    float cpu_usage_this = this->CpuUtilization(); 
+    float cpu_usage_ref = a.CpuUtilization(); 
+    return (cpu_usage_this > cpu_usage_ref) ? true : false; 
 }
