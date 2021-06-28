@@ -488,14 +488,11 @@ long LinuxParser::UpTime(int pid) {
 
     // iterate until the uptime element of the process is the next one to parse
     // from the stringstream
-    for (int i = 1; i < 22; i++) {
+    for (int i = 1; i < 14; i++) {
       linestream >> tmp_element;
     }
     // parse the uptime
-    linestream >> uptime;  // uptime in jiffies
-
-    // std::cout << "The uptime of " << pid << " is: " << std::stol(uptime) <<
-    // "\n";
+    linestream >> uptime;  // uptime in jiffies is the 13th element
 
     return std::stol(uptime);
   } else {

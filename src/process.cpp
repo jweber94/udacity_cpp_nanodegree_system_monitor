@@ -1,6 +1,5 @@
 #include "process.h"
 
-#include <unistd.h>
 #include <unistd.h>  // sysconf(_SC_CLK_TCK)
 
 #include <cctype>
@@ -41,7 +40,11 @@ string Process::Ram() { return LinuxParser::Ram(this->pid_); }
 
 string Process::User() { return LinuxParser::User(this->pid_); }
 
-long int Process::UpTime() { return LinuxParser::UpTime(this->pid_); }
+long int Process::UpTime() {
+  long uptime_process_in_sec =
+      LinuxParser::UpTime(this->pid_) / sysconf(_SC_CLK_TCK);
+  return uptime_process_in_sec;
+}
 
 bool Process::operator<(Process& a) {
   float cpu_usage_this = this->CpuUtilization();

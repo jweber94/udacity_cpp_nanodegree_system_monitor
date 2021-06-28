@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(monitor)
 
-# my code update
-set(CMAKE_CXX_COMPILER "/usr/bin/g++-7")
+# comment in if you want to build under ubuntu 16.04 LTS - you need to install g++ version 7 beforehand
+# set(CMAKE_CXX_COMPILER "/usr/bin/g++-7")
 
 find_package(Curses REQUIRED)
 include_directories(${CURSES_INCLUDE_DIRS})
