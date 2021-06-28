@@ -319,6 +319,7 @@ vector<string> LinuxParser::CpuUtilization() {
 
 // TODO: Read and return the total number of processes
 int LinuxParser::TotalProcesses() {
+  // Returns the total number of processes (forks from the main processes with PID 1) since boot 
   std::string line, tmp_str, num_proc;
   std::ifstream cpu_usage_stream(kProcDirectory + kStatFilename);
   int num_processes;

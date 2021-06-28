@@ -8,6 +8,8 @@ It contains relevant attributes as shown below
 */
 class Process {
  public:
+  Process() = delete; 
+  Process(const int & pid); // TODO: Create the constructor
   int Pid();                               // TODO: See src/process.cpp
   std::string User();                      // TODO: See src/process.cpp
   std::string Command();                   // TODO: See src/process.cpp
@@ -18,6 +20,8 @@ class Process {
 
   // TODO: Declare any necessary private members
  private:
+    int pid_ = 0; // default is not a valid id 
+    std::string command_ = "none"; 
 };
 
 #endif
