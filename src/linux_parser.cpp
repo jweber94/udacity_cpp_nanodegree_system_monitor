@@ -4,18 +4,17 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <cmath>
 
 using std::stof;
 using std::string;
 using std::to_string;
 using std::vector;
 
-// DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
   string line;
   string key;
@@ -38,7 +37,6 @@ string LinuxParser::OperatingSystem() {
   return value;
 }
 
-// DONE: An example of how to read data from the filesystem
 string LinuxParser::Kernel() {
   string os, kernel, version;
   string line;
@@ -51,7 +49,6 @@ string LinuxParser::Kernel() {
   return kernel;
 }
 
-// BONUS: Update this to use std::filesystem
 vector<int> LinuxParser::Pids() {
   vector<int> pids;
   DIR* directory = opendir(kProcDirectory.c_str());
@@ -71,7 +68,6 @@ vector<int> LinuxParser::Pids() {
   return pids;
 }
 
-// TODO: Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() {
   // cache all memory related information to make it possible to create more
   // sophisticated functionallities in the future
@@ -121,7 +117,6 @@ float LinuxParser::MemoryUtilization() {
   return (mem_tot - mem_ffree) / mem_tot;
 }
 
-// TODO: Read and return the system uptime
 long LinuxParser::UpTime() {
   /*
    * Returns the uptime of the system in seconds
@@ -145,18 +140,13 @@ long LinuxParser::UpTime() {
   }
 }
 
-// TODO: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() {
   return LinuxParser::ActiveJiffies() + LinuxParser::IdleJiffies();
 }
 
-// TODO: Read and return the number of active jiffies for a PID
-// REMOVE: [[maybe_unused]] once you define the function
 long LinuxParser::ActiveJiffies(int pid) {
-  /*
-  * Returns the number of jiffies (= clock ticks) that the process with the corresponding PID has spend actively on the cpu
-  */
-  
+  // Returns the number of jiffies (= clock ticks) that the process with the
+  // corresponding PID has spend actively on the cpu
   std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
                                    kStatFilename);
   std::string utime, sstime, cutime, cstime, starttime, line, tmp;
@@ -186,8 +176,8 @@ long LinuxParser::ActiveJiffies(int pid) {
         pid_jiff_stream >> tmp;
       }
     }
-    result_jiffies =
-        std::stol(utime) + std::stol(sstime) + std::stol(cutime) + std::stol(cstime);  
+    result_jiffies = std::stol(utime) + std::stol(sstime) + std::stol(cutime) +
+                     std::stol(cstime);
     return result_jiffies;
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";
@@ -195,30 +185,32 @@ long LinuxParser::ActiveJiffies(int pid) {
   }
 }
 
-// TODO: Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() {
-  /*
-  * Returns the number of jiffies (= clock ticks) that the cpu spends in active modes (user mode, nice mode, system mode). The information could be found in /proc/stat after the cpu key. You can look up the itemization in https://man7.org/linux/man-pages/man5/procfs.5.html if you are searching for "/proc/stat" 
-  */
-  std::string line, key, user_jif, nice_jif, system_jif, idle_jif; 
+  // Returns the number of jiffies (= clock ticks) that the cpu spends in active
+  // modes (user mode, nice mode, system mode). The information could be found
+  // in /proc/stat after the cpu key. You can look up the itemization in
+  // https://man7.org/linux/man-pages/man5/procfs.5.html if you are searching
+  // for "/proc/stat"
+  std::string line, key, user_jif, nice_jif, system_jif, idle_jif;
   std::ifstream active_jif_stream(kProcDirectory + kStatFilename);
 
-  if (active_jif_stream.is_open()){
+  if (active_jif_stream.is_open()) {
     std::getline(active_jif_stream, line);
-    std::stringstream cpu_sstream(line); // the cummulated system cpu information is stored only in the first line
+    std::stringstream cpu_sstream(
+        line);  // the cummulated system cpu information is stored only in the
+                // first line
     cpu_sstream >> key >> user_jif >> nice_jif >> system_jif >> idle_jif;
-    return std::stol(user_jif) + std::stol(nice_jif) + std::stol(system_jif); 
+    return std::stol(user_jif) + std::stol(nice_jif) + std::stol(system_jif);
   } else {
-    std::cerr << "Could not open /proc/stat\n"; 
-    exit(0); 
+    std::cerr << "Could not open /proc/stat\n";
+    exit(0);
   }
 }
 
 long LinuxParser::IdleJiffies(int pid) {
-  /*
-  * Returns the number of jiffies (= clock ticks) that the process with the corresponding PID has spend passivly on the cpu (= idle)
-  */
-  
+  // Returns the number of jiffies (= clock ticks) that the process with the
+  // corresponding PID has spend passivly on the cpu (= idle)
+
   std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
                                    kStatFilename);
   std::string utime, sstime, cutime, cstime, starttime, line, tmp;
@@ -237,7 +229,7 @@ long LinuxParser::IdleJiffies(int pid) {
       if (i == 13) {
         pid_jiff_stream >> utime;
       } else if (i == 14) {
-        pid_jiff_stream >> sstime;  // sstime, since stime is a C++ keyword
+        pid_jiff_stream >> sstime;
       } else if (i == 15) {
         pid_jiff_stream >> cutime;
       } else if (i == 16) {
@@ -248,9 +240,7 @@ long LinuxParser::IdleJiffies(int pid) {
         pid_jiff_stream >> tmp;
       }
     }
-    result_jiffies =
-        std::stol(cutime) +
-        std::stol(cstime); 
+    result_jiffies = std::stol(cutime) + std::stol(cstime);
     return result_jiffies;
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";
@@ -258,26 +248,31 @@ long LinuxParser::IdleJiffies(int pid) {
   }
 }
 
-// TODO: Read and return the number of idle jiffies for the system
 long LinuxParser::IdleJiffies() {
-  /*
-  * Returns the number of jiffies (= clock ticks) that the cpu spends in active modes (user mode, nice mode, system mode). The information could be found in /proc/stat after the cpu key. You can look up the itemization in https://man7.org/linux/man-pages/man5/procfs.5.html if you are searching for "/proc/stat" 
-  */
-  std::string line, key, user_jif, nice_jif, system_jif, idle_jif; 
+  // Returns the number of jiffies (= clock ticks) that the cpu spends in active
+  // modes (user mode, nice mode, system mode). The information could be found
+  // in /proc/stat after the cpu key. You can look up the itemization in
+  // https://man7.org/linux/man-pages/man5/procfs.5.html if you are searching
+  // for "/proc/stat"
+  std::string line, key, user_jif, nice_jif, system_jif, idle_jif;
   std::ifstream active_jif_stream(kProcDirectory + kStatFilename);
 
-  if (active_jif_stream.is_open()){
+  if (active_jif_stream.is_open()) {
     std::getline(active_jif_stream, line);
-    std::stringstream cpu_sstream(line); // the cummulated system cpu information is stored only in the first line
+    std::stringstream cpu_sstream(
+        line);  // the cummulated system cpu information is stored only in the
+                // first line
     cpu_sstream >> key >> user_jif >> nice_jif >> system_jif >> idle_jif;
-    return std::stol(idle_jif); // iowait is not included, since it is not a relieable value (i.e. https://man7.org/linux/man-pages/man5/procfs.5.html search for /proc/stat)
+    return std::stol(
+        idle_jif);  // iowait is not included, since it is not a relieable value
+                    // (i.e. https://man7.org/linux/man-pages/man5/procfs.5.html
+                    // search for /proc/stat)
   } else {
-    std::cerr << "Could not open /proc/stat\n"; 
-    exit(0); 
+    std::cerr << "Could not open /proc/stat\n";
+    exit(0);
   }
 }
 
-// TODO: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() {
   /*
    * Resulting datastructure:
@@ -291,7 +286,7 @@ vector<string> LinuxParser::CpuUtilization() {
    * 7: steal_cpu;
    * 8: guest_cpu;
    */
-  
+
   std::vector<std::string> cpu_vector;
   // Explaination, how to read the system cpu information from the /proc/stat
   // file: https://www.idnt.net/en-US/kb/941772
@@ -328,9 +323,9 @@ vector<string> LinuxParser::CpuUtilization() {
   }
 }
 
-// TODO: Read and return the total number of processes
 int LinuxParser::TotalProcesses() {
-  // Returns the total number of processes (forks from the main processes with PID 1) since boot 
+  // Returns the total number of processes (forks from the main processes with
+  // PID 1) since boot
   std::string line, tmp_str, num_proc;
   std::ifstream cpu_usage_stream(kProcDirectory + kStatFilename);
   int num_processes;
@@ -356,7 +351,6 @@ int LinuxParser::TotalProcesses() {
   }
 }
 
-// TODO: Read and return the number of running processes
 int LinuxParser::RunningProcesses() {
   std::string line, tmp_str, num_proc;
   std::ifstream cpu_usage_stream(kProcDirectory + kStatFilename);
@@ -384,8 +378,6 @@ int LinuxParser::RunningProcesses() {
   return 0;
 }
 
-// TODO: Read and return the command associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Command(int pid) {
   std::string exec_command, tmp_str;
   std::ifstream command_stream(kProcDirectory + std::to_string(pid) +
@@ -403,8 +395,6 @@ string LinuxParser::Command(int pid) {
   }
 }
 
-// TODO: Read and return the memory used by a process
-// REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Ram(int pid) {
   std::string ram_usage, tmp_key, line;
   std::ifstream ram_stream(kProcDirectory + "/" + std::to_string(pid) +
@@ -417,14 +407,15 @@ string LinuxParser::Ram(int pid) {
         // Reference:
         // https://serverfault.com/questions/138427/what-does-virtual-memory-size-in-top-mean
         // and https://man7.org/linux/man-pages/man5/proc.5.html
-        line_stream >> ram_usage;  
-        
-        // calculate RAM in MB since we just can parse it in KB 
-        float tmp_ram = (std::stof(ram_usage) / 1000.f); 
-        float ram = floorf( tmp_ram * 100) / 100;
-        int precisionVal = 2; // number of decimal points for the print out
-         
-        std::string printout_ram = std::to_string(ram).substr(0, std::to_string(ram).find(".") + precisionVal + 1);
+        line_stream >> ram_usage;
+
+        // calculate RAM in MB since we just can parse it in KB
+        float tmp_ram = (std::stof(ram_usage) / 1000.f);
+        float ram = floorf(tmp_ram * 100) / 100;
+        int precisionVal = 2;  // number of decimal points for the print out
+
+        std::string printout_ram = std::to_string(ram).substr(
+            0, std::to_string(ram).find(".") + precisionVal + 1);
         return printout_ram;
       }
     }
@@ -434,8 +425,6 @@ string LinuxParser::Ram(int pid) {
   }
 }
 
-// TODO: Read and return the user ID associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::Uid(int pid) {
   std::string line, tmp_key, uid;
   std::ifstream uid_stream(kProcDirectory + "/" + std::to_string(pid) +
@@ -456,8 +445,6 @@ string LinuxParser::Uid(int pid) {
   }
 }
 
-// TODO: Read and return the user associated with a process
-// REMOVE: [[maybe_unused]] once you define the function
 string LinuxParser::User(int pid) {
   std::string line, uid_process;
   std::ifstream user_stream(kPasswordPath);
@@ -488,15 +475,11 @@ string LinuxParser::User(int pid) {
   }
 }
 
-// TODO: Read and return the uptime of a process
-// REMOVE: [[maybe_unused]] once you define the function
 long LinuxParser::UpTime(int pid) {
   std::string line, tmp_element, uptime;
   std::ifstream uptime_pid_stream(kProcDirectory + "/" + std::to_string(pid) +
                                   kStatFilename);
-  /* 
-  * Returns the uptime of a process in jiffies
-  */
+  // Returns the uptime of a process in jiffies
 
   if (uptime_pid_stream.is_open()) {
     std::getline(uptime_pid_stream,
@@ -511,7 +494,8 @@ long LinuxParser::UpTime(int pid) {
     // parse the uptime
     linestream >> uptime;  // uptime in jiffies
 
-    //std::cout << "The uptime of " << pid << " is: " << std::stol(uptime) << "\n"; 
+    // std::cout << "The uptime of " << pid << " is: " << std::stol(uptime) <<
+    // "\n";
 
     return std::stol(uptime);
   } else {
@@ -520,7 +504,7 @@ long LinuxParser::UpTime(int pid) {
   }
 }
 
-long LinuxParser::StartTime(int pid){
+long LinuxParser::StartTime(int pid) {
   // Returns the start time of the process in jiffies
   std::ifstream pid_jiffies_stream(kProcDirectory + "/" + std::to_string(pid) +
                                    kStatFilename);
@@ -530,14 +514,15 @@ long LinuxParser::StartTime(int pid){
     std::getline(pid_jiffies_stream, line);
     std::stringstream pid_jiff_stream(line);
 
-    // walk throu the cpu data in the first line of the file until the start time of the process appears at the index 21
+    // walk throu the cpu data in the first line of the file until the start
+    // time of the process appears at the index 21
     for (int i = 0; i < 20; i++) {
-        pid_jiff_stream >> tmp;
+      pid_jiff_stream >> tmp;
     }
     // extract the start time
-    pid_jiff_stream >> starttime; 
+    pid_jiff_stream >> starttime;
 
-    return std::stol(starttime);  
+    return std::stol(starttime);
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";
     exit(0);

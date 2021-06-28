@@ -9,24 +9,21 @@
 
 class System {
  public:
-  System(); 
-  Processor& Cpu();                   // TODO: See src/system.cpp
-  std::vector<Process>& Processes();  // TODO: See src/system.cpp
-  float MemoryUtilization();          // TODO: See src/system.cpp
-  long UpTime();                      // TODO: See src/system.cpp
-  int TotalProcesses();               // TODO: See src/system.cpp
-  int RunningProcesses();             // TODO: See src/system.cpp
-  std::string Kernel();               // TODO: See src/system.cpp
-  std::string OperatingSystem();      // TODO: See src/system.cpp
+  System();
+  Processor& Cpu();
+  std::vector<Process>& Processes();
+  float MemoryUtilization();
+  long UpTime();
+  int TotalProcesses();
+  int RunningProcesses();
+  std::string Kernel();
+  std::string OperatingSystem();
 
-  // TODO: Define any necessary private members
  private:
-  Processor cpu_ = {}; // Processor object accesses the LinuxParser Namespace for scraping the system information about the processor
-  std::vector<Process> processes_ = {}; // The processes class contains the scraper for the processes
-  
-  // fixed system information
-  std::string os_; 
-  std::string kernel_; 
+  Processor cpu_ = {};
+  std::vector<Process> processes_ = {};
+  std::string os_;
+  std::string kernel_;
 };
 
 #endif
