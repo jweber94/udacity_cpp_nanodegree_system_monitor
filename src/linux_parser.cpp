@@ -34,6 +34,7 @@ string LinuxParser::OperatingSystem() {
       }
     }
   }
+  filestream.close();
   return value;
 }
 
@@ -46,6 +47,7 @@ string LinuxParser::Kernel() {
     std::istringstream linestream(line);
     linestream >> os >> version >> kernel;
   }
+  stream.close();
   return kernel;
 }
 
@@ -107,6 +109,7 @@ float LinuxParser::MemoryUtilization() {
     std::cerr << "Could not open /proc/meminfo\n";
     exit(0);
   }
+  mem_util_stream.close();
 
   // calculate memory utilization
   mem_tot = std::stof(mem_total);
@@ -133,6 +136,7 @@ long LinuxParser::UpTime() {
     std::getline(uptime_stream, line);
     std::istringstream linestream_instance(line);
     linestream_instance >> uptime >> idle_time;
+    uptime_stream.close();
     return static_cast<long>(std::stof(uptime));
   } else {
     std::cerr << "Could not open /proc/uptime\n";
@@ -178,6 +182,7 @@ long LinuxParser::ActiveJiffies(int pid) {
     }
     result_jiffies = std::stol(utime) + std::stol(sstime) + std::stol(cutime) +
                      std::stol(cstime);
+    //pid_jiffies_stream.close();
     return result_jiffies;
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";
@@ -200,6 +205,7 @@ long LinuxParser::ActiveJiffies() {
         line);  // the cummulated system cpu information is stored only in the
                 // first line
     cpu_sstream >> key >> user_jif >> nice_jif >> system_jif >> idle_jif;
+    active_jif_stream.close();
     return std::stol(user_jif) + std::stol(nice_jif) + std::stol(system_jif);
   } else {
     std::cerr << "Could not open /proc/stat\n";
@@ -241,6 +247,7 @@ long LinuxParser::IdleJiffies(int pid) {
       }
     }
     result_jiffies = std::stol(cutime) + std::stol(cstime);
+    pid_jiffies_stream.close();
     return result_jiffies;
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";
@@ -263,6 +270,7 @@ long LinuxParser::IdleJiffies() {
         line);  // the cummulated system cpu information is stored only in the
                 // first line
     cpu_sstream >> key >> user_jif >> nice_jif >> system_jif >> idle_jif;
+    active_jif_stream.close();
     return std::stol(
         idle_jif);  // iowait is not included, since it is not a relieable value
                     // (i.e. https://man7.org/linux/man-pages/man5/procfs.5.html
@@ -315,6 +323,7 @@ vector<string> LinuxParser::CpuUtilization() {
 
     assert(cpu_vector.size() == 9);
 
+    cpu_usage_stream.close();
     return cpu_vector;
 
   } else {
@@ -343,8 +352,9 @@ int LinuxParser::TotalProcesses() {
       }
     }
     num_processes = std::stoi(num_proc);
-    return num_processes;
 
+    cpu_usage_stream.close();
+    return num_processes;
   } else {
     std::cerr << "Could not open /proc/stat\n";
     exit(0);
@@ -369,8 +379,8 @@ int LinuxParser::RunningProcesses() {
       }
     }
     num_processes = std::stoi(num_proc);
+    cpu_usage_stream.close();
     return num_processes;
-
   } else {
     std::cerr << "Could not open /proc/stat\n";
     exit(0);
@@ -387,8 +397,9 @@ string LinuxParser::Command(int pid) {
     // The cmdline file has just one line, so we can read the complete line at
     // once if we do not want to extract special information from it
     std::getline(command_stream, exec_command);
-    return exec_command;
 
+    command_stream.close();
+    return exec_command;
   } else {
     std::cerr << "Could not open /proc/" << pid << "/cmdline\n";
     exit(0);
@@ -400,9 +411,9 @@ string LinuxParser::Ram(int pid) {
   std::ifstream ram_stream(kProcDirectory + "/" + std::to_string(pid) +
                            kStatusFilename);
   float ram;
-  int precisionVal = 2; // number of decimal points for the print out
+  int precisionVal = 2;  // number of decimal points for the print out
   float tmp_ram;
-  std::string printout_ram; 
+  std::string printout_ram;
 
   if (ram_stream.is_open()) {
     while (std::getline(ram_stream, line)) {
@@ -416,7 +427,7 @@ string LinuxParser::Ram(int pid) {
 
         // calculate RAM in MB since we just can parse it in KB
         tmp_ram = (std::stof(ram_usage) / 1000.f);
-        ram = floorf(tmp_ram * 100) / 100;  
+        ram = floorf(tmp_ram * 100) / 100;
 
         printout_ram = std::to_string(ram).substr(
             0, std::to_string(ram).find(".") + precisionVal + 1);
@@ -426,6 +437,7 @@ string LinuxParser::Ram(int pid) {
     std::cerr << "Could not open /proc/" << pid << "/status\n";
     exit(0);
   }
+  ram_stream.close();
   return printout_ram;
 }
 
@@ -446,6 +458,7 @@ string LinuxParser::Uid(int pid) {
     std::cerr << "Could not read /proc/" << pid << "/status\n";
     exit(0);
   }
+  uid_stream.close();
   return uid;
 }
 
@@ -470,21 +483,23 @@ string LinuxParser::User(int pid) {
       std::stringstream linestream(line);
       linestream >> username >> pass >> uid;
       if (uid == uid_process) {
-        break; 
+        break;
       }
     }
   } else {
     std::cerr << "Could not open " << kPasswordPath << "\n";
     exit(0);
   }
+  user_stream.close();
   return username;
 }
 
 long LinuxParser::UpTime(int pid) {
+  // Returns the uptime of a process in jiffies
   std::string line, tmp_element, uptime;
   std::ifstream uptime_pid_stream(kProcDirectory + "/" + std::to_string(pid) +
                                   kStatFilename);
-  // Returns the uptime of a process in jiffies
+  long starttime, uptime_pid;
 
   if (uptime_pid_stream.is_open()) {
     std::getline(uptime_pid_stream,
@@ -493,17 +508,28 @@ long LinuxParser::UpTime(int pid) {
 
     // iterate until the uptime element of the process is the next one to parse
     // from the stringstream
-    for (int i = 1; i < 14; i++) {
+    for (int i = 1; i < 22; i++) {
+      // go throu 21 elements to get to the starttime-element
       linestream >> tmp_element;
     }
-    // parse the uptime
-    linestream >> uptime;  // uptime in jiffies is the 13th element
+    // parse the uptime as the 22th element, according to the udacity reviewers
+    // feedback
+    linestream >> uptime;  // uptime in jiffies
 
-    return std::stol(uptime);
+    uptime_pid_stream.close();
+    starttime = std::stol(uptime);
   } else {
     std::cerr << "Could not open /proc/" << pid << "/stat\n";
     exit(0);
   }
+
+  // calculate uptime of the processes, based on the uptime of the system.
+  // CAUTION: LinuxParser::Uptime() returns the uptime in seconds and starttime
+  // is in jiffies/clock ticks, so we need to convert the starttime to seconds
+  // before subtracting it from the uptime of the system by dividing throu the
+  // sysconf(_SC_CLK_TCK) - calculation based on the udacity reviewer
+  uptime_pid = LinuxParser::UpTime() - starttime / sysconf(_SC_CLK_TCK);
+  return uptime_pid;
 }
 
 long LinuxParser::StartTime(int pid) {
@@ -518,12 +544,13 @@ long LinuxParser::StartTime(int pid) {
 
     // walk throu the cpu data in the first line of the file until the start
     // time of the process appears at the index 21
-    for (int i = 0; i < 20; i++) {
+    for (int i = 1; i < 22; i++) {
       pid_jiff_stream >> tmp;
     }
     // extract the start time
     pid_jiff_stream >> starttime;
 
+    pid_jiffies_stream.close();
     return std::stol(starttime);
   } else {
     std::cerr << "Could not read jiffies for the PID " << pid << "\n";

@@ -42,7 +42,7 @@ string Process::User() { return LinuxParser::User(this->pid_); }
 
 long int Process::UpTime() {
   long uptime_process_in_sec =
-      LinuxParser::UpTime(this->pid_) / sysconf(_SC_CLK_TCK);
+      LinuxParser::UpTime(this->pid_); 
   return uptime_process_in_sec;
 }
 
