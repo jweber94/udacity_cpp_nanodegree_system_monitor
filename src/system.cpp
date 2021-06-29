@@ -29,7 +29,7 @@ vector<Process>& System::Processes() {
   std::vector<int> pid_list = LinuxParser::Pids();
   this->processes_.clear();
 
-  for (int i = 0; i < pid_list.size(); i++) {
+  for (unsigned int i = 0; i < pid_list.size(); i++) {
     Process tmp_process(pid_list[i]);
     this->processes_.push_back(tmp_process);
   }

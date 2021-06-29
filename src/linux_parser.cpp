@@ -71,7 +71,7 @@ vector<int> LinuxParser::Pids() {
 float LinuxParser::MemoryUtilization() {
   // cache all memory related information to make it possible to create more
   // sophisticated functionallities in the future
-  float mem_tot, mem_ffree, mem_availf, mem_buffer;
+  [[maybe_unused]] float mem_tot, mem_ffree, mem_availf, mem_buffer;
   std::string line, mem_total, mem_free, mem_avail, buffers, tmp_key, tmp_value;
   std::ifstream mem_util_stream(kProcDirectory + kMeminfoFilename);
   bool mem_tot_b, mem_free_b, mem_avail_b, buffers_b = false;
@@ -399,6 +399,11 @@ string LinuxParser::Ram(int pid) {
   std::string ram_usage, tmp_key, line;
   std::ifstream ram_stream(kProcDirectory + "/" + std::to_string(pid) +
                            kStatusFilename);
+  float ram;
+  int precisionVal = 2; // number of decimal points for the print out
+  float tmp_ram;
+  std::string printout_ram; 
+
   if (ram_stream.is_open()) {
     while (std::getline(ram_stream, line)) {
       std::stringstream line_stream(line);
@@ -410,19 +415,18 @@ string LinuxParser::Ram(int pid) {
         line_stream >> ram_usage;
 
         // calculate RAM in MB since we just can parse it in KB
-        float tmp_ram = (std::stof(ram_usage) / 1000.f);
-        float ram = floorf(tmp_ram * 100) / 100;
-        int precisionVal = 2;  // number of decimal points for the print out
+        tmp_ram = (std::stof(ram_usage) / 1000.f);
+        ram = floorf(tmp_ram * 100) / 100;  
 
-        std::string printout_ram = std::to_string(ram).substr(
+        printout_ram = std::to_string(ram).substr(
             0, std::to_string(ram).find(".") + precisionVal + 1);
-        return printout_ram;
       }
     }
   } else {
     std::cerr << "Could not open /proc/" << pid << "/status\n";
     exit(0);
   }
+  return printout_ram;
 }
 
 string LinuxParser::Uid(int pid) {
@@ -436,13 +440,13 @@ string LinuxParser::Uid(int pid) {
       linestream >> tmp_key;
       if (tmp_key == "Uid:") {
         linestream >> uid;
-        return uid;
       }
     }
   } else {
     std::cerr << "Could not read /proc/" << pid << "/status\n";
     exit(0);
   }
+  return uid;
 }
 
 string LinuxParser::User(int pid) {
@@ -466,13 +470,14 @@ string LinuxParser::User(int pid) {
       std::stringstream linestream(line);
       linestream >> username >> pass >> uid;
       if (uid == uid_process) {
-        return username;
+        break; 
       }
     }
   } else {
     std::cerr << "Could not open " << kPasswordPath << "\n";
     exit(0);
   }
+  return username;
 }
 
 long LinuxParser::UpTime(int pid) {
